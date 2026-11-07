@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Tajný průzkum</title>
+<style>
+:root{--bg:#f6f3fb;--card:#fff;--ink:#1c1530;--mut:#6b6384;--acc:#6d3fd6;--line:#e4def2;--err:#c0262d;--ok:#1f8a4c}
+@media (prefers-color-scheme:dark){:root{--bg:#15121c;--card:#1f1a2b;--ink:#efeaf9;--mut:#a79fc0;--acc:#8c66f0;--line:#352d47;--err:#ff8085;--ok:#5fd18c}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0)}
+main{max-width:560px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.7rem;margin:0 0 6px;letter-spacing:-.02em}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px}
+.big{font-size:1.4rem;font-weight:700;margin:8px 0 14px}
+.mut{color:var(--mut);font-size:.9rem;margin:0 0 14px}
+input[type=text],textarea{width:100%;font:inherit;color:inherit;background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px}
+input[type=text]:focus,textarea:focus{outline:2px solid var(--acc);border-color:transparent}
+textarea{min-height:84px;resize:vertical}
+button{font:inherit;font-weight:650;border:0;border-radius:12px;padding:13px 18px;background:var(--acc);color:#fff;width:100%;margin-top:12px;cursor:pointer}
+button.sec{background:transparent;color:var(--acc);border:1.5px solid var(--acc)}
+button:disabled{opacity:.6}
+.err{color:var(--err);font-weight:600;margin:8px 0 0}
+.q{margin:0 0 14px;padding:16px;border-radius:16px;background:var(--card);border:1.5px solid var(--line)}
+.q.bad{border-color:var(--err)}
+.q h2{font-size:1.02rem;margin:0 0 10px}
+.q h2 small{font-weight:400;color:var(--mut)}
+.opt{display:flex;gap:10px;align-items:center;padding:11px 12px;margin:6px 0;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);cursor:pointer}
+.opt input{width:20px;height:20px;accent-color:var(--acc);flex:none;margin:0}
+.opt:has(input:checked){border-color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,var(--bg))}
+.opt:has(input:focus-visible){outline:2px solid var(--acc)}
+.scale{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.scale .opt{justify-content:center;margin:0;font-weight:700;position:relative;padding:14px 0}
+.scale input{position:absolute;opacity:0}
+.scale .opt:has(input:checked){background:var(--acc);color:#fff}
+.ends{display:flex;justify-content:space-between;color:var(--mut);font-size:.8rem;margin-top:6px}
+.fail{border-color:var(--err)}
+.center{text-align:center}
+#qrbox{background:#fff;padding:14px;border-radius:14px;display:inline-block;line-height:0}
+#qrbox svg{width:min(70vw,300px);height:auto}
+.url{word-break:break-all;font-size:.85rem;color:var(--mut)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+<section id="qr" class="card center" hidden>
+  <h1>QR kód průzkumu</h1>
+  <p class="mut">Naskenuj telefonem a otevři dotazník.</p>
+  <div id="qrbox"></div>
+  <p class="url" id="qrurl"></p>
+</section>
+
+<section id="gate" class="card" hidden>
+  <h1>Tajný průzkum</h1>
+  <p class="big">Let him …</p>
+  <input type="text" id="g" placeholder="doplň slovo" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Doplň slovo">
+  <p class="err" id="gerr" hidden>To není ono, zkus to znovu.</p>
+  <button id="gbtn">Pokračovat</button>
+</section>
+
+<section id="form" hidden>
+  <h1>Sladkosti ve škole</h1>
+  <p class="mut">Anonymní, trvá to chvilku. Povinné jsou jen otázky 1 a 2.</p>
+  <div id="qs"></div>
+  <p class="err" id="ferr" hidden>Odpověz prosím aspoň na otázky 1 a 2.</p>
+  <button id="send">Odeslat</button>
+</section>
+
+<section id="fail" class="card fail" hidden>
+  <h1>Nepovedlo se uložit</h1>
+  <p id="why" class="err"></p>
+  <button id="retry">Zkusit znovu</button>
+  <button id="copy" class="sec">Zkopírovat odpovědi</button>
+</section>
+
+<section id="thanks" class="card center" hidden>
+  <h1>Díky!</h1>
+  <p class="mut">Tvoje odpověď je uložená. Nikdo nevidí, kdo jsi.</p>
+</section>
+</main>
+
+<script>
+// ▼▼▼ SEM VLOŽ URL WEBOVÉ APLIKACE Z APPS SCRIPTU (končí na /exec) ▼▼▼
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxrMFZ8yhcdB8U0weTIzZ-f8sy7OFYQkSChLFO63SIAL7dZqHxGGL1GLAlz5zyefdkt/exec";
+// ▲▲▲ ----------------------------------------------------------- ▲▲▲
+
+const Q = [
+ {k:'freq',  t:'Jak často bys něco koupil/a?', type:'one', req:1, o:['Každý den','Párkrát týdně','Jednou týdně','Spíš málokdy']},
+ {k:'what',  t:'Co by sis koupil/a?', hint:'Vyber, kolik chceš.', type:'many', req:1, o:['Sušenky','Chipsy','Bonbóny','Čokoláda a tyčinky','Nápoje','Žvýkačky']},
+ {k:'price', t:'Kolik jsi ochoten/ochotna dát za kus?', type:'one', o:['do 15 Kč','15–25 Kč','25–40 Kč','víc než 40 Kč']},
+ {k:'when',  t:'Kdy by se ti nákup hodil?', type:'one', o:['Ráno před školou','O velké přestávce','Po škole']},
+ {k:'pickup',t:'Jak by sis to nejradši vyzvedl/a?', type:'one', o:['Hned na místě','Předem objednat zprávou','Domluvit si schůzku']},
+ {k:'interest',t:'Jak moc by tě to zajímalo?', type:'scale'},
+ {k:'ask',   t:'Máš nějaký dotaz?', type:'text', ph:'Napiš, co tě zajímá…'},
+ {k:'idea',  t:'Máš nápad nebo přání?', type:'text', ph:'Napiš cokoliv…'}
+];
+const $ = s => document.querySelector(s);
+const SEC = ['qr','gate','form','fail','thanks'];
+function show(id){ SEC.forEach(s => $('#'+s).hidden = s !== id); window.scrollTo(0,0); }
+function norm(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(); }
+function el(tag, cls, txt){ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; }
+
+// ---- vykreslení otázek
+const qs = $('#qs');
+Q.forEach((q,i) => {
+  const box = el('div','q'); box.id = 'q-'+q.k;
+  const h = el('h2', null, (i+1)+'. '+q.t+(q.req?' *':'')+' ');
+  if(q.hint) h.appendChild(el('small',null,q.hint));
+  box.appendChild(h);
+  if(q.type==='one' || q.type==='many'){
+    q.o.forEach(v => {
+      const l = el('label','opt'), inp = el('input');
+      inp.type = q.type==='one' ? 'radio' : 'checkbox'; inp.name = q.k; inp.value = v;
+      l.appendChild(inp); l.appendChild(el('span',null,v)); box.appendChild(l);
+    });
+  } else if(q.type==='scale'){
+    const g = el('div','scale');
+    for(let n=1;n<=5;n++){ const l=el('label','opt'), inp=el('input'); inp.type='radio'; inp.name=q.k; inp.value=String(n); l.appendChild(inp); l.appendChild(el('span',null,String(n))); g.appendChild(l); }
+    box.appendChild(g);
+    const e = el('div','ends'); e.appendChild(el('span',null,'1 = vůbec')); e.appendChild(el('span',null,'5 = moc')); box.appendChild(e);
+  } else {
+    const t = el('textarea'); t.name=q.k; t.maxLength=1000; t.placeholder=q.ph; t.setAttribute('aria-label',q.t); box.appendChild(t);
+  }
+  qs.appendChild(box);
+});
+
+function collect(){
+  const d = {};
+  Q.forEach(q => {
+    const box = $('#q-'+q.k);
+    if(q.type==='many') d[q.k] = [...box.querySelectorAll('input:checked')].map(x=>x.value);
+    else if(q.type==='text') d[q.k] = box.querySelector('textarea').value.trim();
+    else { const c = box.querySelector('input:checked'); d[q.k] = c ? c.value : ''; }
+  });
+  return d;
+}
+
+// ---- brána
+function gate(){
+  if(norm($('#g').value) === 'cook'){ show('form'); }
+  else { $('#gerr').hidden = false; }
+}
+$('#gbtn').onclick = gate;
+$('#g').addEventListener('keydown', e => { if(e.key==='Enter') gate(); });
+$('#g').addEventListener('input', () => $('#gerr').hidden = true);
+
+// ---- odeslání
+let last = null;
+const URL_OK = /^https:\/\/script\.google\.com\/(a\/[^\/]+\/)?macros\/s\/[^\/]+\/exec$/;
+async function post(p){
+  if(!navigator.onLine) throw new Error('nejsi online');
+  if(!URL_OK.test(SCRIPT_URL)) throw new Error('špatná URL skriptu (SCRIPT_URL)');
+  let r;
+  try{
+    r = await fetch(SCRIPT_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(p)});
+  }catch(e){
+    throw new Error(navigator.onLine ? 'skript vyžaduje přihlášení (nasazení musí být „Kdokoli“) nebo je špatná URL' : 'nejsi online');
+  }
+  if(!r.ok) throw new Error('server vrátil chybu '+r.status);
+  const t = await r.text(); let j;
+  try{ j = JSON.parse(t); }catch(e){ throw new Error('skript vyžaduje přihlášení (nasazení musí být „Kdokoli“)'); }
+  if(!j.ok) throw new Error(j.error || 'skript odpověď odmítl');
+}
+async function submit(){
+  const d = collect();
+  let bad = false;
+  Q.forEach(q => { const empty = q.type==='many' ? !d[q.k].length : !d[q.k]; const b = q.req && empty; $('#q-'+q.k).classList.toggle('bad', !!b); bad = bad || !!b; });
+  $('#ferr').hidden = !bad;
+  if(bad){ document.querySelector('.q.bad').scrollIntoView({behavior:'smooth',block:'center'}); return; }
+  last = d;
+  const b = $('#send'); b.disabled = true; b.textContent = 'Odesílám…';
+  try{ await post(d); show('thanks'); }
+  catch(e){ $('#why').textContent = 'Důvod: '+e.message+'.'; show('fail'); }
+  finally{ b.disabled = false; b.textContent = 'Odeslat'; }
+}
+$('#send').onclick = submit;
+$('#retry').onclick = async () => {
+  const b=$('#retry'); b.disabled=true;
+  try{ await post(last); show('thanks'); } catch(e){ $('#why').textContent = 'Důvod: '+e.message+'.'; }
+  b.disabled=false;
+};
+$('#copy').onclick = async () => {
+  const txt = JSON.stringify(last, null, 2), b = $('#copy');
+  try{ await navigator.clipboard.writeText(txt); }
+  catch(e){ const t=el('textarea'); t.value=txt; document.body.appendChild(t); t.select(); try{document.execCommand('copy')}catch(_){} t.remove(); }
+  b.textContent = 'Zkopírováno ✓'; setTimeout(()=>b.textContent='Zkopírovat odpovědi', 2000);
+};
+
+// ---- QR kód: přidej na konec adresy #qr
+function route(){
+  if(location.hash === '#qr'){
+    const url = location.href.split('#')[0];
+    $('#qrurl').textContent = url;
+    show('qr');
+    try{ const qr = qrcode(0,'M'); qr.addData(url); qr.make(); $('#qrbox').innerHTML = qr.createSvgTag({cellSize:8, margin:0, scalable:true}); }
+    catch(e){ $('#qrbox').textContent = 'QR kód se nepodařilo vytvořit.'; }
+  } else if(!$('#qr').hidden){ show('gate'); }
+}
+window.addEventListener('hashchange', route);
+show('gate');
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" onload="route()" onerror="route()"></script>
+</body>
+</html>
