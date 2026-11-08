@@ -61,7 +61,7 @@ button:disabled{opacity:.6}
 </section>
 
 <section id="form" hidden>
-  <h1>Sladkosti ve škole</h1>
+  <h1>prodej sladkosti ve škole</h1>
   <p class="mut">Anonymní, trvá to chvilku. Povinné jsou jen otázky 1 a 2.</p>
   <div id="qs"></div>
   <p class="err" id="ferr" hidden>Odpověz prosím aspoň na otázky 1 a 2.</p>
@@ -89,7 +89,6 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxrMFZ8yhcdB8U0weTIz
 const Q = [
  {k:'freq',  t:'Jak často bys něco koupil/a?', type:'one', req:1, o:['Každý den','Párkrát týdně','Jednou týdně','Spíš málokdy']},
  {k:'what',  t:'Co by sis koupil/a?', hint:'Vyber, kolik chceš.', type:'many', req:1, o:['Sušenky','Chipsy','Bonbóny','Čokoláda a tyčinky','Nápoje','Žvýkačky']},
- {k:'price', t:'Kolik jsi ochoten/ochotna dát za kus?', type:'one', o:['do 15 Kč','15–25 Kč','25–40 Kč','víc než 40 Kč']},
  {k:'when',  t:'Kdy by se ti nákup hodil?', type:'one', o:['Ráno před školou','O velké přestávce','Po škole']},
  {k:'pickup',t:'Jak by sis to nejradši vyzvedl/a?', type:'one', o:['Hned na místě','Předem objednat zprávou','Domluvit si schůzku']},
  {k:'interest',t:'Jak moc by tě to zajímalo?', type:'scale'},
